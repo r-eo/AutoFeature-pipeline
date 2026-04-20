@@ -36,14 +36,14 @@ def importance_chart(df: pd.DataFrame, target_col: str, top_n: int = 15) -> go.F
 
     nunique = y.nunique()
     if nunique <= 10:
-        model = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)
+        model = RandomForestClassifier(n_estimators=50, random_state=42, n_jobs=-1)
     else:
-        model = RandomForestRegressor(n_estimators=100, random_state=42, n_jobs=-1)
+        model = RandomForestRegressor(n_estimators=50, random_state=42, n_jobs=-1)
 
     model.fit(X_scaled, y)
 
     perm_imp = permutation_importance(
-        model, X_scaled, y, n_repeats=10, random_state=42, n_jobs=-1
+        model, X_scaled, y, n_repeats=5, random_state=42, n_jobs=-1
     )
 
     imp_series = pd.Series(perm_imp.importances_mean, index=X.columns)

@@ -28,12 +28,30 @@ from components.shap_panel import importance_chart
 from components.export_panel import build_export_df
 
 # ─── Preload datasets ──────────────────────────────────────────────────────────
+print("⏳ Loading datasets...")
 DATASETS = {
     "ames": get_ames_df(),
     "fraud": get_fraud_df(),
 }
 TARGET_MAP = {"ames": "SalePrice", "fraud": "Class"}
 LABEL_MAP = {"ames": "Ames Housing", "fraud": "Credit Card Fraud"}
+
+# ─── Pre-compute ALL expensive results at startup ──────────────────────────────
+print("⏳ Pre-computing analysis cache (this runs once)...")
+CACHE = {}
+for _key, _df in DATASETS.items():
+    _target = TARGET_MAP[_key]
+    _features_df = _df.drop(columns=[_target], errors="ignore")
+    CACHE[_key] = {
+        "stats": compute_stats(_df),
+        "histogram": target_histogram(_df, _target),
+        "corr_heatmap": correlation_heatmap(_df),
+        "corr_pairs": top_correlated_pairs(_df),
+        "mi_chart": mutual_info_chart(_df, _target),
+        "pca_5": pca_figures(_df, _target, 5),
+        "importance": importance_chart(_df, _target, top_n=15),
+    }
+print("✅ Cache ready — dashboard will load instantly!")
 
 # ─── App initialisation ────────────────────────────────────────────────────────
 app = dash.Dash(
@@ -486,8 +504,7 @@ def update_dataset_store(dataset_key):
 def update_sidebar_stats(dataset_key):
     if not dataset_key:
         return no_update
-    df = _get_df(dataset_key)
-    stats = compute_stats(df)
+    stats = CACHE[dataset_key]["stats"]
     return html.Div([
         html.Div(f"Rows: {stats['rows']}", style={"fontSize": "0.82rem"}),
         html.Div(f"Columns: {stats['cols']}", style={"fontSize": "0.82rem"}),
@@ -508,10 +525,8 @@ def update_sidebar_stats(dataset_key):
 def update_overview(dataset_key):
     if not dataset_key:
         return "—", "—", "—", "—", _empty_fig()
-    df = _get_df(dataset_key)
-    stats = compute_stats(df)
-    target = TARGET_MAP.get(dataset_key, df.columns[-1])
-    fig = target_histogram(df, target)
+    stats = CACHE[dataset_key]["stats"]
+    fig = CACHE[dataset_key]["histogram"]
     return (
         str(stats["rows"]),
         str(stats["cols"]),
@@ -530,9 +545,8 @@ def update_overview(dataset_key):
 def update_correlation(dataset_key):
     if not dataset_key:
         return _empty_fig(), html.Div()
-    df = _get_df(dataset_key)
-    fig = correlation_heatmap(df)
-    pairs_df = top_correlated_pairs(df)
+    fig = CACHE[dataset_key]["corr_heatmap"]
+    pairs_df = CACHE[dataset_key]["corr_pairs"]
     table = dbc.Table.from_dataframe(pairs_df, striped=True, bordered=False, hover=True, size="sm", className="mt-2")
     return fig, table
 
@@ -547,7 +561,7 @@ def toggle_corr_collapse(n, is_open):
     return not is_open
 
 
-# ── 3. Variance slider → chart ──────────────────────────────────────────────
+# ── 3. Variance slider → chart (fast — no ML involved) ─────────────────────
 @app.callback(
     Output("variance-chart", "figure"),
     Output("variance-summary", "children"),
@@ -558,7 +572,6 @@ def update_variance(dataset_key, threshold):
     if not dataset_key:
         return _empty_fig(), ""
     df = _get_df(dataset_key).copy()
-    # Drop target column so it doesn't dominate min-max normalised variance
     target = TARGET_MAP.get(dataset_key)
     if target and target in df.columns:
         df = df.drop(columns=[target])
@@ -591,6 +604,11 @@ def update_mi_dropdown(dataset_key):
 def update_mi_chart(dataset_key, target_col):
     if not dataset_key or not target_col:
         return _empty_fig()
+    # Use cache if target matches the default target
+    default_target = TARGET_MAP.get(dataset_key)
+    if target_col == default_target:
+        return CACHE[dataset_key]["mi_chart"]
+    # Otherwise compute live (only when user picks a different target)
     df = _get_df(dataset_key)
     return mutual_info_chart(df, target_col)
 
@@ -605,13 +623,15 @@ def update_mi_chart(dataset_key, target_col):
 def update_pca(dataset_key, n_components):
     if not dataset_key:
         return _empty_fig(), _empty_fig()
+    # Use cache for default (5 components)
+    if n_components == 5:
+        return CACHE[dataset_key]["pca_5"]
     df = _get_df(dataset_key)
     target = TARGET_MAP.get(dataset_key, df.columns[-1])
-    scree, scatter = pca_figures(df, target, n_components)
-    return scree, scatter
+    return pca_figures(df, target, n_components)
 
 
-# ── 6. Feature generation ───────────────────────────────────────────────────
+# ── 6. Feature generation (user-triggered, fast) ───────────────────────────
 @app.callback(
     Output("feature-table-container", "children"),
     Output("feature-summary", "children"),
@@ -643,7 +663,7 @@ def update_feature_gen(n_clicks, dataset_key, method):
     return table, summary
 
 
-# ── 7. Feature importance (auto on dataset change) ─────────────────────────
+# ── 7. Feature importance (cached — instant) ───────────────────────────────
 @app.callback(
     Output("importance-chart", "figure"),
     Input("dataset-key-store", "data"),
@@ -651,9 +671,7 @@ def update_feature_gen(n_clicks, dataset_key, method):
 def update_importance(dataset_key):
     if not dataset_key:
         return _empty_fig()
-    df = _get_df(dataset_key)
-    target = TARGET_MAP.get(dataset_key, df.columns[-1])
-    return importance_chart(df, target)
+    return CACHE[dataset_key]["importance"]
 
 
 # ── 8. Export CSV ──────────────────────────────────────────────────────────
