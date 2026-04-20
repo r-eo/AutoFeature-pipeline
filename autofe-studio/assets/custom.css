@@ -1,0 +1,231 @@
+/* ═══════════════════════════════════════════
+   AutoFE Studio — Custom CSS Overrides
+   ═══════════════════════════════════════════ */
+
+/* ---------- Global ---------- */
+body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #f4f6fb;
+    color: #333;
+    margin: 0;
+    padding: 0;
+}
+
+/* ---------- Navbar ---------- */
+.navbar-custom {
+    background: #1a1a2e !important;
+    padding: 0.6rem 1.5rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.navbar-custom .navbar-brand {
+    color: #fff !important;
+    font-weight: 700;
+    font-size: 1.25rem;
+    letter-spacing: -0.02em;
+}
+
+.navbar-custom .navbar-brand small {
+    color: rgba(255, 255, 255, 0.6);
+    font-weight: 400;
+    font-size: 0.75rem;
+    display: block;
+    margin-top: -2px;
+}
+
+.navbar-custom .nav-link,
+.navbar-custom .btn-link {
+    color: rgba(255, 255, 255, 0.85) !important;
+}
+
+.navbar-custom .nav-link:hover {
+    color: #fff !important;
+}
+
+/* ---------- Sidebar ---------- */
+.sidebar {
+    background: #f8f9fa;
+    border-right: 1px solid #e0e4ec;
+    min-height: calc(100vh - 56px);
+    padding: 1.25rem 1rem;
+    position: sticky;
+    top: 56px;
+    overflow-y: auto;
+    max-height: calc(100vh - 56px);
+}
+
+.sidebar .form-check-label,
+.sidebar label {
+    font-size: 0.875rem;
+    color: #444;
+}
+
+.sidebar .card {
+    background: #fff;
+    border: 1px solid #e8ecf1;
+    border-radius: 10px;
+    box-shadow: none;
+}
+
+.sidebar .nav-link {
+    font-size: 0.82rem;
+    color: #555;
+    padding: 0.3rem 0.6rem;
+    border-radius: 6px;
+    transition: background 0.15s, color 0.15s;
+}
+
+.sidebar .nav-link:hover {
+    background: #e8ecf1;
+    color: #1a1a2e;
+}
+
+/* ---------- Section Cards ---------- */
+.section-card {
+    background: #fff;
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
+    margin-bottom: 1.5rem;
+    padding: 1.25rem 1.5rem;
+}
+
+.section-card h5 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1a1a2e;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* ---------- Metric Cards ---------- */
+.metric-card {
+    background: #f0f4ff;
+    border-left: 3px solid #4361ee;
+    border-radius: 8px;
+    padding: 1rem 1.15rem;
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.metric-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(67, 97, 238, 0.12);
+}
+
+.metric-card .metric-value {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #1a1a2e;
+    line-height: 1.1;
+}
+
+.metric-card .metric-label {
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-top: 0.25rem;
+}
+
+/* ---------- Buttons ---------- */
+.btn-primary {
+    background: #4361ee !important;
+    border-color: #4361ee !important;
+    border-radius: 8px;
+    font-weight: 500;
+    padding: 0.5rem 1.25rem;
+}
+
+.btn-primary:hover {
+    background: #3a56d4 !important;
+    border-color: #3a56d4 !important;
+}
+
+.btn-outline-secondary {
+    border-radius: 8px;
+}
+
+/* ---------- Tables ---------- */
+.table {
+    font-size: 0.85rem;
+}
+
+.table thead th {
+    background: #f0f4ff;
+    color: #1a1a2e;
+    font-weight: 600;
+    border-bottom: 2px solid #d0d7e8;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.table td {
+    vertical-align: middle;
+}
+
+/* ---------- Scrollbar ---------- */
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #c4c9d4;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+/* ---------- Radio & Checkbox ---------- */
+.form-check-input:checked {
+    background-color: #4361ee;
+    border-color: #4361ee;
+}
+
+/* ---------- Slider ---------- */
+.rc-slider-track {
+    background-color: #4361ee !important;
+}
+
+.rc-slider-handle {
+    border-color: #4361ee !important;
+}
+
+/* ---------- Loading spinner ---------- */
+.dash-spinner {
+    color: #4361ee !important;
+}
+
+/* ---------- Export panel ---------- */
+.export-checklist .form-check {
+    padding: 0.4rem 0;
+}
+
+/* ---------- Misc ---------- */
+.badge-teal {
+    background: #0d9488;
+    color: #fff;
+    font-weight: 500;
+    font-size: 0.75rem;
+    padding: 0.3em 0.65em;
+    border-radius: 6px;
+}
+
+hr.section-divider {
+    border-top: 1px solid #e8ecf1;
+    margin: 0.5rem 0 1rem 0;
+}
+
+/* Plotly modebar styling */
+.modebar-btn path {
+    fill: #888 !important;
+}
+
+.modebar-btn:hover path {
+    fill: #4361ee !important;
+}
