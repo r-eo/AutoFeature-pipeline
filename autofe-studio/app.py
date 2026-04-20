@@ -52,11 +52,10 @@ server = app.server  # Required for gunicorn
 # ═══════════════════════════════════════════════════════════════════════════════
 #  HELPERS
 # ═══════════════════════════════════════════════════════════════════════════════
-def _load_df(json_data: str) -> pd.DataFrame:
-    """Deserialise JSON string from dcc.Store into a DataFrame.
-    Uses io.StringIO to prevent newer pandas from misinterpreting the
-    JSON string as a file path."""
-    return pd.read_json(io.StringIO(json_data), orient="split")
+def _get_df(dataset_key: str) -> pd.DataFrame:
+    """Load DataFrame from in-memory DATASETS dict.
+    Much more reliable than serialising/deserialising huge JSON strings."""
+    return DATASETS.get(dataset_key, DATASETS["ames"])
 
 
 def _empty_fig(msg: str = "No data") -> go.Figure:
@@ -427,8 +426,7 @@ section_export = html.Div(
 # ═══════════════════════════════════════════════════════════════════════════════
 app.layout = html.Div(
     [
-        # Stores — pre-populated with default dataset to avoid None on initial load
-        dcc.Store(id="dataset-store", data=DATASETS["ames"].to_json(orient="split")),
+        # Stores — dataset-key-store holds the key string, data loaded from memory
         dcc.Store(id="dataset-key-store", data="ames"),
         dcc.Store(id="variance-threshold-store", data=0.1),
 
@@ -473,24 +471,22 @@ app.layout = html.Div(
 
 # ── 1. Dataset selector → Store ────────────────────────────────────────────────
 @app.callback(
-    Output("dataset-store", "data"),
     Output("dataset-key-store", "data"),
     Input("dataset-selector", "value"),
 )
 def update_dataset_store(dataset_key):
-    df = DATASETS[dataset_key]
-    return df.to_json(orient="split"), dataset_key
+    return dataset_key
 
 
 # ── 2a. Sidebar quick stats ───────────────────────────────────────────────────
 @app.callback(
     Output("sidebar-stats", "children"),
-    Input("dataset-store", "data"),
+    Input("dataset-key-store", "data"),
 )
-def update_sidebar_stats(json_data):
-    if not json_data:
+def update_sidebar_stats(dataset_key):
+    if not dataset_key:
         return no_update
-    df = _load_df(json_data)
+    df = _get_df(dataset_key)
     stats = compute_stats(df)
     return html.Div([
         html.Div(f"Rows: {stats['rows']}", style={"fontSize": "0.82rem"}),
@@ -507,13 +503,12 @@ def update_sidebar_stats(json_data):
     Output("stat-numeric", "children"),
     Output("stat-missing", "children"),
     Output("target-histogram", "figure"),
-    Input("dataset-store", "data"),
     Input("dataset-key-store", "data"),
 )
-def update_overview(json_data, dataset_key):
-    if not json_data:
+def update_overview(dataset_key):
+    if not dataset_key:
         return "—", "—", "—", "—", _empty_fig()
-    df = _load_df(json_data)
+    df = _get_df(dataset_key)
     stats = compute_stats(df)
     target = TARGET_MAP.get(dataset_key, df.columns[-1])
     fig = target_histogram(df, target)
@@ -530,12 +525,12 @@ def update_overview(json_data, dataset_key):
 @app.callback(
     Output("corr-heatmap", "figure"),
     Output("corr-table-container", "children"),
-    Input("dataset-store", "data"),
+    Input("dataset-key-store", "data"),
 )
-def update_correlation(json_data):
-    if not json_data:
+def update_correlation(dataset_key):
+    if not dataset_key:
         return _empty_fig(), html.Div()
-    df = _load_df(json_data)
+    df = _get_df(dataset_key)
     fig = correlation_heatmap(df)
     pairs_df = top_correlated_pairs(df)
     table = dbc.Table.from_dataframe(pairs_df, striped=True, bordered=False, hover=True, size="sm", className="mt-2")
@@ -556,14 +551,13 @@ def toggle_corr_collapse(n, is_open):
 @app.callback(
     Output("variance-chart", "figure"),
     Output("variance-summary", "children"),
-    Input("dataset-store", "data"),
-    Input("variance-slider", "value"),
     Input("dataset-key-store", "data"),
+    Input("variance-slider", "value"),
 )
-def update_variance(json_data, threshold, dataset_key):
-    if not json_data:
+def update_variance(dataset_key, threshold):
+    if not dataset_key:
         return _empty_fig(), ""
-    df = _load_df(json_data)
+    df = _get_df(dataset_key).copy()
     # Drop target column so it doesn't dominate min-max normalised variance
     target = TARGET_MAP.get(dataset_key)
     if target and target in df.columns:
@@ -577,13 +571,12 @@ def update_variance(json_data, threshold, dataset_key):
 @app.callback(
     Output("mi-target-dropdown", "options"),
     Output("mi-target-dropdown", "value"),
-    Input("dataset-store", "data"),
     Input("dataset-key-store", "data"),
 )
-def update_mi_dropdown(json_data, dataset_key):
-    if not json_data:
+def update_mi_dropdown(dataset_key):
+    if not dataset_key:
         return [], None
-    df = _load_df(json_data)
+    df = _get_df(dataset_key)
     numeric_cols = df.select_dtypes(include="number").columns.tolist()
     options = [{"label": c, "value": c} for c in numeric_cols]
     default = TARGET_MAP.get(dataset_key, numeric_cols[-1] if numeric_cols else None)
@@ -592,13 +585,13 @@ def update_mi_dropdown(json_data, dataset_key):
 
 @app.callback(
     Output("mi-chart", "figure"),
-    Input("dataset-store", "data"),
+    Input("dataset-key-store", "data"),
     Input("mi-target-dropdown", "value"),
 )
-def update_mi_chart(json_data, target_col):
-    if not json_data or not target_col:
+def update_mi_chart(dataset_key, target_col):
+    if not dataset_key or not target_col:
         return _empty_fig()
-    df = _load_df(json_data)
+    df = _get_df(dataset_key)
     return mutual_info_chart(df, target_col)
 
 
@@ -606,14 +599,13 @@ def update_mi_chart(json_data, target_col):
 @app.callback(
     Output("pca-scree", "figure"),
     Output("pca-scatter", "figure"),
-    Input("dataset-store", "data"),
     Input("dataset-key-store", "data"),
     Input("pca-slider", "value"),
 )
-def update_pca(json_data, dataset_key, n_components):
-    if not json_data:
+def update_pca(dataset_key, n_components):
+    if not dataset_key:
         return _empty_fig(), _empty_fig()
-    df = _load_df(json_data)
+    df = _get_df(dataset_key)
     target = TARGET_MAP.get(dataset_key, df.columns[-1])
     scree, scatter = pca_figures(df, target, n_components)
     return scree, scatter
@@ -624,14 +616,14 @@ def update_pca(json_data, dataset_key, n_components):
     Output("feature-table-container", "children"),
     Output("feature-summary", "children"),
     Input("btn-generate", "n_clicks"),
-    State("dataset-store", "data"),
+    State("dataset-key-store", "data"),
     State("feature-method", "value"),
     prevent_initial_call=True,
 )
-def update_feature_gen(n_clicks, json_data, method):
-    if not json_data:
+def update_feature_gen(n_clicks, dataset_key, method):
+    if not dataset_key:
         return html.Div("No dataset loaded."), ""
-    df = _load_df(json_data)
+    df = _get_df(dataset_key)
     original_count = len(df.select_dtypes(include="number").columns)
     result = generate_features(df, method)
     new_count = len(result.columns) - original_count
@@ -654,13 +646,12 @@ def update_feature_gen(n_clicks, json_data, method):
 # ── 7. Feature importance (auto on dataset change) ─────────────────────────
 @app.callback(
     Output("importance-chart", "figure"),
-    Input("dataset-store", "data"),
     Input("dataset-key-store", "data"),
 )
-def update_importance(json_data, dataset_key):
-    if not json_data:
+def update_importance(dataset_key):
+    if not dataset_key:
         return _empty_fig()
-    df = _load_df(json_data)
+    df = _get_df(dataset_key)
     target = TARGET_MAP.get(dataset_key, df.columns[-1])
     return importance_chart(df, target)
 
@@ -670,15 +661,15 @@ def update_importance(json_data, dataset_key):
     Output("download-csv", "data"),
     Output("export-status", "children"),
     Input("btn-download", "n_clicks"),
-    State("dataset-store", "data"),
+    State("dataset-key-store", "data"),
     State("export-checklist", "value"),
     State("variance-slider", "value"),
     prevent_initial_call=True,
 )
-def download_csv(n_clicks, json_data, selections, var_threshold):
-    if not json_data or not selections:
+def download_csv(n_clicks, dataset_key, selections, var_threshold):
+    if not dataset_key or not selections:
         return no_update, "⚠️ Please select at least one transformation."
-    df = _load_df(json_data)
+    df = _get_df(dataset_key)
     csv_string = build_export_df(df, selections, var_threshold)
     return (
         dict(content=csv_string, filename="autofe_processed_features.csv"),
