@@ -42,15 +42,38 @@ CACHE = {}
 for _key, _df in DATASETS.items():
     _target = TARGET_MAP[_key]
     _features_df = _df.drop(columns=[_target], errors="ignore")
-    CACHE[_key] = {
+    _cache = {
         "stats": compute_stats(_df),
         "histogram": target_histogram(_df, _target),
-        "corr_heatmap": correlation_heatmap(_df),
-        "corr_pairs": top_correlated_pairs(_df),
-        "mi_chart": mutual_info_chart(_df, _target),
-        "pca_5": pca_figures(_df, _target, 5),
-        "importance": importance_chart(_df, _target, top_n=15),
     }
+    # Wrap expensive computations in try/except for production safety
+    try:
+        _cache["corr_heatmap"] = correlation_heatmap(_df)
+        _cache["corr_pairs"] = top_correlated_pairs(_df)
+        print(f"  ✔ {_key}: correlation done")
+    except Exception as e:
+        print(f"  ✘ {_key}: correlation failed: {e}")
+        _cache["corr_heatmap"] = go.Figure()
+        _cache["corr_pairs"] = pd.DataFrame(columns=["Feature A", "Feature B", "Correlation"])
+    try:
+        _cache["mi_chart"] = mutual_info_chart(_df, _target)
+        print(f"  ✔ {_key}: mutual info done")
+    except Exception as e:
+        print(f"  ✘ {_key}: MI failed: {e}")
+        _cache["mi_chart"] = go.Figure()
+    try:
+        _cache["pca_5"] = pca_figures(_df, _target, 5)
+        print(f"  ✔ {_key}: PCA done")
+    except Exception as e:
+        print(f"  ✘ {_key}: PCA failed: {e}")
+        _cache["pca_5"] = (go.Figure(), go.Figure())
+    try:
+        _cache["importance"] = importance_chart(_df, _target, top_n=15)
+        print(f"  ✔ {_key}: importance done")
+    except Exception as e:
+        print(f"  ✘ {_key}: importance failed: {e}")
+        _cache["importance"] = go.Figure()
+    CACHE[_key] = _cache
 print("✅ Cache ready — dashboard will load instantly!")
 
 # ─── App initialisation ────────────────────────────────────────────────────────
